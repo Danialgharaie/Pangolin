@@ -57,10 +57,13 @@ class Pangolin(nn.Module):
         self.conv_last6 = nn.Conv1d(L, 1, 1)
         self.conv_last7 = nn.Conv1d(L, 2, 1)
         self.conv_last8 = nn.Conv1d(L, 1, 1)
+        self.W = torch.tensor(W, dtype=torch.float32)
+        self.AR = torch.tensor(AR, dtype=torch.float32)
 
     def forward(self, x):
         conv = self.conv1(x)
         skip = self.skip(conv)
+        
         j = 0
         for i in range(len(W)):
             conv = self.resblocks[i](conv)
@@ -68,6 +71,7 @@ class Pangolin(nn.Module):
                 dense = self.convs[j](conv)
                 j += 1
                 skip = skip + dense
+
         CL = 2 * np.sum(AR * (W - 1))
         skip = F.pad(skip, (-CL // 2, -CL // 2))
         out1 = F.softmax(self.conv_last1(skip), dim=1)
@@ -79,5 +83,3 @@ class Pangolin(nn.Module):
         out7 = F.softmax(self.conv_last7(skip), dim=1)
         out8 = torch.sigmoid(self.conv_last8(skip))
         return torch.cat([out1, out2, out3, out4, out5, out6, out7, out8], 1)
-
-

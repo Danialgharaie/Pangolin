@@ -275,7 +275,68 @@ def fill_shelve(tmpdir, queue):
             sh.sync()  
 
 
-def vcf_writer(queue, variants, args, tmpdir): # pos, ref_seq, alt_seq, genes_pos, genes_neg, models, args):
+def format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff):
+    scores_list = []
+    for (genes, loss, gain) in (
+        (genes_pos,loss_pos,gain_pos),(genes_neg,loss_neg,gain_neg)
+    ):
+        if loss is None or gain is None or len(genes) == 0:
+            continue
+        # Emit a bundle of scores/warnings per gene; join them all later
+        for gene, positions in genes.items():
+            per_gene_scores = []
+            warnings = "Warnings:"
+            positions = np.array(positions)
+            positions = positions - (pos - d)
+            # apply masking
+            if args.mask == "True" and len(positions) != 0:
+                positions_filt = positions[(positions>=0) & (positions<len(loss))]
+                # set splice gain at annotated sites to 0
+                gain[positions_filt] = np.minimum(gain[positions_filt], 0)
+                # set splice loss at unannotated sites to 0
+                not_positions = ~np.isin(np.arange(len(loss)), positions_filt)
+                loss[not_positions] = np.maximum(loss[not_positions], 0)
+            elif args.mask == "True":
+                warnings += "NoAnnotatedSitesToMaskForThisGene"
+                loss[:] = np.maximum(loss[:], 0)
+                
+            if args.score_exons == "True":
+                scores1 = [gene + '_sites1']
+                scores2 = [gene + '_sites2']
+                for i in range(len(positions)//2):
+                    p1, p2 = positions[2*i], positions[2*i+1]
+                    if p1<0 or p1>=len(loss):
+                        s1 = "NA"
+                    else:
+                        s1 = [loss[p1],gain[p1]]
+                        s1 = round(s1[np.argmax(np.abs(s1))],2)
+                    if p2<0 or p2>=len(loss):
+                        s2 = "NA"
+                    else:
+                        s2 = [loss[p2],gain[p2]]
+                        s2 = round(s2[np.argmax(np.abs(s2))],2)
+                    if s1 == "NA" and s2 == "NA":
+                        continue
+                    scores1.append(f"{p1-d}:{s1}")
+                    scores2.append(f"{p2-d}:{s2}")
+                per_gene_scores += scores1 + scores2
+            elif cutoff != None:
+                per_gene_scores.append(gene)
+                l, g = np.where(loss<=-cutoff)[0], np.where(gain>=cutoff)[0]
+                for p, s in zip(np.concatenate([g-d,l-d]), np.concatenate([gain[g],loss[l]])):
+                    per_gene_scores.append(f"{p}:{round(s,2)}")
+            else:
+                per_gene_scores.append(gene)
+                l, g = np.argmin(loss), np.argmax(gain),
+                gain_str = f"{g-d}:{round(gain[g],2)}"
+                loss_str = f"{l-d}:{round(loss[l],2)}"
+                per_gene_scores += [gain_str, loss_str]
+            per_gene_scores.append(warnings)
+            scores_list.append('|'.join(per_gene_scores))
+    return ",".join(scores_list)
+
+
+def vcf_writer(queue, variants, args, tmpdir): 
     d = args.distance
     cutoff = args.score_cutoff
     # variants are out of order (based on tensor size)
@@ -335,75 +396,57 @@ def vcf_writer(queue, variants, args, tmpdir): # pos, ref_seq, alt_seq, genes_po
                 loss_neg, gain_neg, genes_neg = None, None, None
             
             # reformat for vcf
-            scores_list = []
-            for (genes, loss, gain) in (
-                (genes_pos,loss_pos,gain_pos),(genes_neg,loss_neg,gain_neg)
-            ):
-                if loss is None or gain is None or len(genes) == 0:
-                    continue
-                # Emit a bundle of scores/warnings per gene; join them all later
-                for gene, positions in genes.items():
-                    per_gene_scores = []
-                    warnings = "Warnings:"
-                    positions = np.array(positions)
-                    positions = positions - (pos - d)
-                    # apply masking
-                    if args.mask == "True" and len(positions) != 0:
-                        positions_filt = positions[(positions>=0) & (positions<len(loss))]
-                        # set splice gain at annotated sites to 0
-                        gain[positions_filt] = np.minimum(gain[positions_filt], 0)
-                        # set splice loss at unannotated sites to 0
-                        not_positions = ~np.isin(np.arange(len(loss)), positions_filt)
-                        loss[not_positions] = np.maximum(loss[not_positions], 0)
-
-                    elif args.mask == "True":
-                        warnings += "NoAnnotatedSitesToMaskForThisGene"
-                        loss[:] = np.maximum(loss[:], 0)
-
-                    if args.score_exons == "True":
-                        scores1 = [gene + '_sites1']
-                        scores2 = [gene + '_sites2']
-
-                        for i in range(len(positions)//2):
-                            p1, p2 = positions[2*i], positions[2*i+1]
-                            if p1<0 or p1>=len(loss):
-                                s1 = "NA"
-                            else:
-                                s1 = [loss[p1],gain[p1]]
-                                s1 = round(s1[np.argmax(np.abs(s1))],2)
-                            if p2<0 or p2>=len(loss):
-                                s2 = "NA"
-                            else:
-                                s2 = [loss[p2],gain[p2]]
-                                s2 = round(s2[np.argmax(np.abs(s2))],2)
-                            if s1 == "NA" and s2 == "NA":
-                                continue
-                            scores1.append(f"{p1-d}:{s1}")
-                            scores2.append(f"{p2-d}:{s2}")
-                        per_gene_scores += scores1 + scores2
-
-                    elif cutoff != None:
-                        per_gene_scores.append(gene)
-                        l, g = np.where(loss<=-cutoff)[0], np.where(gain>=cutoff)[0]
-                        for p, s in zip(np.concatenate([g-d,l-d]), np.concatenate([gain[g],loss[l]])):
-                            per_gene_scores.append(f"{p}:{round(s,2)}")
-
-                    else:
-                        per_gene_scores.append(gene)
-                        l, g = np.argmin(loss), np.argmax(gain),
-                        gain_str = f"{g-d}:{round(gain[g],2)}"
-                        loss_str = f"{l-d}:{round(loss[l],2)}"
-                        per_gene_scores += [gain_str, loss_str]
-
-                    per_gene_scores.append(warnings)
-                    scores_list.append('|'.join(per_gene_scores))
+            scores = format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
 
             # write to vcf
-            variant_record.info["Pangolin"] = ",".join(scores_list)
+            variant_record.info["Pangolin"] = scores
             out_variant_file.write(variant_record)
 
-    # remove the shelve
-    #os.remove(f"{tmpdir}/variants.shelve")
+def csv_writer(queue, variants, args, tmpdir): 
+    d = args.distance
+    cutoff = args.score_cutoff
+    # variants are out of order (based on tensor size)
+    #   1. create a shelve
+    try:
+        fill_shelve(tmpdir, queue)
+    except Exception as e:
+        log.error(f"Shelve creation failed: {repr(e)}")
+        sys.exit(1)
+
+    #   2. once all are ready => write CSV
+    col_ids = args.column_ids.split(',')
+    with pd.read_csv(variants, header=0) as variant_file, open(args.output_file+".csv", 'w') as fout, shelve.open(f"{tmpdir}/variants.shelve") as sh:
+        #variants = pd.read_csv(variants, header=0)
+        fout = open(args.output_file+".csv", 'w')
+        fout.write(','.join(variant_file.columns)+',Pangolin\n')
+        fout.flush()
+        for lnum, variant in variant_file.iterrows():
+            chr, pos, ref, alt = variant[col_ids]
+            ref, alt = ref.upper(), alt.upper()
+            variant_key = f"{lnum}|{alt}"
+            # skipped variant
+            if f"{variant_key}|+" not in sh and f"{variant_key}|-" not in sh:
+                fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+'\n')
+                continue
+            # get the scores
+            if f"{variant_key}|+" in sh and sh[f"{variant_key}|+"] is not None:
+                # get the scores
+                loss_pos, gain_pos = sh[f"{variant_key}|+"]['loss'], sh[f"{variant_key}|+"]['gain']
+                genes_pos = sh[f"{variant_key}|+"]['genes']
+            else:
+                loss_pos, gain_pos, genes_pos = None, None, None
+            if f"{variant_key}|-" in sh and sh[f"{variant_key}|-"] is not None:
+                loss_neg, gain_neg = sh[f"{variant_key}|-"]['loss'], sh[f"{variant_key}|-"]['gain']
+                genes_neg = sh[f"{variant_key}|-"]['genes']
+            else:
+                loss_neg, gain_neg, genes_neg = None, None, None
+            
+            scores = format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
+                      
+            fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+scores+'\n')
+            fout.flush()
+
+        fout.close()
 
 def pickle_batches(batches, skipped_variants, batch_nr, tmpdir, queue, args, all=False):
     for length in batches:

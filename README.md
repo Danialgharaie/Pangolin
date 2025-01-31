@@ -52,15 +52,17 @@ See below for information on usage and local installation.
     ```
     See full options below:
     ```
-    usage: pangolin [-h] [-c COLUMN_IDS] [-m {False,True}] [-s SCORE_CUTOFF] [-d DISTANCE] variant_file reference_file annotation_file output_file
+    usage: pangolin [-h] [-c COLUMN_IDS] [-m {False,True}] [-s SCORE_CUTOFF] [-d DISTANCE] [--score_exons {False,True}] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--tmpdir TMPDIR] [--variant_batchsize VARIANT_BATCHSIZE]
+                [--tensor_batchsize TENSOR_BATCHSIZE]
+                variant_file reference_file annotation_file output_file
 
     positional arguments:
       variant_file          VCF or CSV file with a header (see COLUMN_IDS option).
       reference_file        FASTA file containing a reference genome sequence.
       annotation_file       gffutils database file. Can be generated using create_db.py.
       output_file           Prefix for output file. Will be a VCF/CSV if variant_file is VCF/CSV.
-
-    optional arguments:
+    
+    options:
       -h, --help            show this help message and exit
       -c COLUMN_IDS, --column_ids COLUMN_IDS
                             (If variant_file is a CSV) Column IDs for: chromosome, variant position, reference bases, and alternative bases. Separate IDs by commas. (Default: CHROM,POS,REF,ALT)
@@ -70,6 +72,15 @@ See below for information on usage and local installation.
                             Output all sites with absolute predicted change in score >= cutoff, instead of only the maximum loss/gain sites.
       -d DISTANCE, --distance DISTANCE
                             Number of bases on either side of the variant for which splice scores should be calculated. (Default: 50)
+      --score_exons {False,True}
+                            Output changes in score for both splice sites of annotated exons, as long as one splice site is within the considered range (specified by -d). Output will be: gene|site1_pos:score|site2_pos:score|...
+      --loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                            Set the logging level. (Default: INFO)
+      --tmpdir TMPDIR       Location to create temporary directory for storing intermediate files.
+      --variant_batchsize VARIANT_BATCHSIZE
+                            Number of variants to score in a single CPU batch. (Default: 1280)
+      --tensor_batchsize TENSOR_BATCHSIZE
+                            Number of variants to process in a single GPU batch. (Default: 128)
     ```
 
 ### Usage (custom)

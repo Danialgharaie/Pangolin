@@ -612,7 +612,7 @@ def main():
     parser.add_argument("--score_exons", default="False", choices=["False","True"], help="Output changes in score for both splice sites of annotated exons, as long as one splice site is within the considered range (specified by -d). Output will be: gene|site1_pos:score|site2_pos:score|...")
     parser.add_argument("--loglevel", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], help="Set the logging level. (Default: INFO)")
     parser.add_argument("--tmpdir", help="Location to create temporary directory for storing intermediate files.", default=tempfile.gettempdir())
-    parser.add_argument("--variant_batchsize", type=int, default=1000, help="Number of variants to score in a single CPU batch. (Default: 1000)")
+    parser.add_argument("--variant_batchsize", type=int, default=1280, help="Number of variants to score in a single CPU batch. (Default: 1280)")
     parser.add_argument("--tensor_batchsize", type=int, default=128, help="Number of variants to process in a single GPU batch. (Default: 128)")
     args = parser.parse_args()
 

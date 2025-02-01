@@ -275,7 +275,7 @@ def fill_shelve(tmpdir, queue):
             sh.sync()  
 
 
-def format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff):
+def format_scores(position, loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff):
     scores_list = []
     for (genes, loss, gain) in (
         (genes_pos,loss_pos,gain_pos),(genes_neg,loss_neg,gain_neg)
@@ -287,7 +287,7 @@ def format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, 
             per_gene_scores = []
             warnings = "Warnings:"
             positions = np.array(positions)
-            positions = positions - (pos - d)
+            positions = positions - (position - d)
             # apply masking
             if args.mask == "True" and len(positions) != 0:
                 positions_filt = positions[(positions>=0) & (positions<len(loss))]
@@ -375,7 +375,7 @@ def vcf_writer(queue, variants, args, tmpdir):
         for idx, variant_record in enumerate(variant_file):
             variant_record.translate(out_variant_file.header)
             alt = str(variant_record.alts[0])
-            pos = int(variant_record.pos)
+            position = int(variant_record.pos)
             variant_key = f"{lnum+idx}|{alt}"
             
             # skipped variant
@@ -396,7 +396,7 @@ def vcf_writer(queue, variants, args, tmpdir):
                 loss_neg, gain_neg, genes_neg = None, None, None
             
             # reformat for vcf
-            scores = format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
+            scores = format_scores(position, loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
 
             # write to vcf
             variant_record.info["Pangolin"] = scores
@@ -421,7 +421,7 @@ def csv_writer(queue, variants, args, tmpdir):
         fout.write(','.join(variant_file.columns)+',Pangolin\n')
         fout.flush()
         for lnum, variant in variant_file.iterrows():
-            chr, pos, ref, alt = variant[col_ids]
+            _, position, ref, alt = variant[col_ids]
             ref, alt = ref.upper(), alt.upper()
             variant_key = f"{lnum}|{alt}"
             # skipped variant
@@ -441,7 +441,7 @@ def csv_writer(queue, variants, args, tmpdir):
             else:
                 loss_neg, gain_neg, genes_neg = None, None, None
             
-            scores = format_scores(loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
+            scores = format_scores(position, loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
                       
             fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+scores+'\n')
             fout.flush()

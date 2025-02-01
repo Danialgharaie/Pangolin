@@ -415,8 +415,9 @@ def csv_writer(queue, variants, args, tmpdir):
 
     #   2. once all are ready => write CSV
     col_ids = args.column_ids.split(',')
-    with pd.read_csv(variants, header=0) as variant_file, open(args.output_file+".csv", 'w') as fout, shelve.open(f"{tmpdir}/variants.shelve") as sh:
-        #variants = pd.read_csv(variants, header=0)
+    with open(args.output_file+".csv", 'w') as fout, shelve.open(f"{tmpdir}/variants.shelve") as sh:
+        # this reads the whole file in memory. 
+        variant_file = pd.read_csv(variants, header=0)
         fout = open(args.output_file+".csv", 'w')
         fout.write(','.join(variant_file.columns)+',Pangolin\n')
         fout.flush()

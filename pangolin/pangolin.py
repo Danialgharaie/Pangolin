@@ -397,9 +397,9 @@ def vcf_writer(queue, variants, args, tmpdir):
             
             # reformat for vcf
             scores = format_scores(position, loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
-
+            if scores != "":
+                variant_record.info["Pangolin"] = scores
             # write to vcf
-            variant_record.info["Pangolin"] = scores
             out_variant_file.write(variant_record)
 
 def csv_writer(queue, variants, args, tmpdir): 

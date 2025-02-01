@@ -588,7 +588,7 @@ def scoring(scoring_queue, writing_queue, args, tmpdir):
                 
         # pickle
         batch_time_end = time.time()
-        print(f"Scored {len(ref_seqs)} variants in {int(batch_time_end - batch_time_start)} seconds : {int(len(ref_seqs)/((batch_time_end-batch_time_start)/3600))} variants/hour")
+        log.info(f"Scored {len(ref_seqs)} variants in {int(batch_time_end - batch_time_start)} seconds : {int(len(ref_seqs)/((batch_time_end-batch_time_start)/3600))} variants/hour")
         with open(f"{tmpdir}/batch_{item}.scores_out.pickle", 'wb') as f:
             pickle.dump((variant_keys, losses, gains), f)
 

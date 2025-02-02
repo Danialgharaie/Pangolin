@@ -47,9 +47,6 @@ RUN mkdir /opt/conda && \
     micromamba install -y $CONDA_CHANNEL $CONDA_PACKAGES && \
     micromamba clean --all --yes
 
-# Break cache for recloning git
-ENV DATE_CACHE_BREAK=$(date)
-
 # my fork of pangolin : has gpu optimizations
 RUN cd /opt/ && \
     git clone https://github.com/geertvandeweyer/pangolin.git && \
@@ -57,8 +54,4 @@ RUN cd /opt/ && \
     pip install .  
     
 # ADD annotation data
-
-## EXAMPLE: 
-# docker run --rm --gpus all -it -v /home:/home spliceai:1.3 nvidia-smi
-
-#spliceai -I /home/geert/TestVCF/wessd-228741-i.haplotypecaller.final.vcf -O /home/geert/TestVCF/wessd-228741-i.haplotypecaller.final.out.gpu.vcf -R /home/geert/refGenome/hg19.fasta -A grch37 -M 1 -B 32 
+CMD ["pangolin", "--help"]

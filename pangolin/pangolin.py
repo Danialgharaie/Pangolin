@@ -443,8 +443,10 @@ def csv_writer(queue, variants, args, tmpdir):
                 loss_neg, gain_neg, genes_neg = None, None, None
             
             scores = format_scores(position, loss_pos, gain_pos, genes_pos, loss_neg, gain_neg, genes_neg, d, args, cutoff)
-                      
-            fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+scores+'\n')
+            if scores != "":
+                fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+scores+'\n')
+            else:
+                fout.write(','.join(variant.to_csv(header=False, index=False).split('\n'))+'\n')
             fout.flush()
 
         fout.close()
